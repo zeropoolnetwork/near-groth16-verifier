@@ -1,0 +1,26 @@
+{
+  "name": "near-groth16-verifier-builder",
+  "version": "1.0.0",
+  "description": "Compiles NEAR Protocol example of setting and retrieving a status message per NEAR account",
+  "scripts": {
+    "build": "cargo build --target wasm32-unknown-unknown --release",
+    "postbuild": "cp target/wasm32-unknown-unknown/release/near_groth16_verifier.wasm ./res/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeropoolnetwork/near-groth16-verifier.git"
+  },
+  "keywords": [
+    "near-protocol",
+    "blockchain",
+    "rust",
+    "smart-contract"
+  ],
+  "author": "Igor Gulamov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zeropoolnetwork/near-groth16-verifier/issues"
+  },
+  "homepage": "https://github.com/zeropoolnetwork/near-groth16-verifier#readme",
+  "devDependencies": {}
+}
