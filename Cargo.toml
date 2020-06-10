@@ -26,5 +26,3 @@ lto = true
 debug = false
 panic = "abort"
 
-[workspace]
-members = []

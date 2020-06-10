@@ -67,12 +67,12 @@ impl Vectorize for (AffineG1, AffineG2) {
 #[derive(
     Clone, Copy, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
 )]
-pub struct G1PointData(U256, U256);
+pub struct G1PointData(pub U256, pub U256);
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
 )]
-pub struct G2PointData((U256, U256), (U256, U256));
+pub struct G2PointData(pub (U256, U256), pub (U256, U256));
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct VKData {
@@ -191,7 +191,7 @@ pub fn groth16_verifier_prepare_pairing(vk: &VK, proof: &Proof, input: &Input) -
     if vk.ic.len() != len + 1 {
         None
     } else {
-        let mut res = vec![0u8; 32 * len];
+        let mut res = vec![0u8; 192*4];
         let mut acc = G1::from(vk.ic[0]);
 
         for i in 0..len {
