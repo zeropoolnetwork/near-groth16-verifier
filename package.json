@@ -5,7 +5,8 @@
   "scripts": {
     "build": "cargo build --target wasm32-unknown-unknown --release",
     "postbuild": "cp target/wasm32-unknown-unknown/release/near_groth16_verifier.wasm ./res/",
-    "local-deploy": "near dev-deploy --wasmFile res/near_groth16_verifier.wasm --masterAccount node0"
+    "local-deploy": "near dev-deploy --wasmFile res/near_groth16_verifier.wasm --masterAccount node0",
+    "local-update": "npm run build && npm run local-deploy"
   },
   "repository": {
     "type": "git",

@@ -11,7 +11,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::Map;
 use near_sdk::{env, near_bindgen};
 
-use verifier::{VK, VKData, Proof, ProofData, Input, InputData, groth16_verifier_prepare_pairing, U256};
+use verifier::{VK, VKData, Proof, ProofData, Input, InputData, groth16_verifier_prepare_pairing, G2PointData, G1PointData};
+use bn::{AffineG2, AffineG1};
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -33,6 +34,11 @@ impl Groth16Verifier {
         self.res_calls.get(&n)
     }
 
+    pub fn profiling(&self, g1: G1PointData) -> Option<u64> {
+        let _g1 = Into::<Option<AffineG1>>::into(g1)?;
+        Some(env::used_gas())
+    }
+
     pub fn groth16verify(&self, vk: VKData, proof:ProofData, input:InputData) -> Option<bool> {
         let vk = Into::<Option<VK>>::into(vk)?;
         let proof = Into::<Option<Proof>>::into(proof)?;
@@ -50,11 +56,6 @@ impl Groth16Verifier {
         self.res_calls.insert(&self.n_calls, &env::alt_bn128_pairing_check(&data));
         self.n_calls+=1;
         Some(())
-    }
-
-    pub fn hello_num(&self, n: U256) -> Option<U256> {
-        let (c, _) = n.overflowing_mul(n);
-        Some(c)
     }
 }
 
