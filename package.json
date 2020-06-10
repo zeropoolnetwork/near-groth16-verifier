@@ -4,7 +4,8 @@
   "description": "Compiles NEAR Protocol example of setting and retrieving a status message per NEAR account",
   "scripts": {
     "build": "cargo build --target wasm32-unknown-unknown --release",
-    "postbuild": "cp target/wasm32-unknown-unknown/release/near_groth16_verifier.wasm ./res/"
+    "postbuild": "cp target/wasm32-unknown-unknown/release/near_groth16_verifier.wasm ./res/",
+    "local-deploy": "near dev-deploy --wasmFile res/near_groth16_verifier.wasm --masterAccount node0"
   },
   "repository": {
     "type": "git",

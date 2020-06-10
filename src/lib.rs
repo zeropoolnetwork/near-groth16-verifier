@@ -1,8 +1,17 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::{env, near_bindgen};
-use near_sdk::collections::Map;
+#[macro_use]
+extern crate uint;
 
-use byte_strings::concat_bytes;
+#[macro_use]
+extern crate impl_serde;
+
+pub mod verifier;
+
+
+use borsh::{BorshDeserialize, BorshSerialize};
+use near_sdk::collections::Map;
+use near_sdk::{env, near_bindgen};
+
+use verifier::{VK, VKData, Proof, ProofData, Input, InputData, groth16_verifier_prepare_pairing, U256};
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -10,37 +19,43 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Groth16Verifier {
+    pub n_calls:u64,
+    pub res_calls: Map<u64,bool>
 }
-
-
 
 #[near_bindgen]
 impl Groth16Verifier {
-    pub fn say_hello(&self) -> Option<String> {
-        env::log(b"A");
-        Some(String::from("hello"))
+    pub fn n_calls(&self) -> u64 {
+        self.n_calls
     }
 
-    pub fn pairing_check(&self) -> Option<bool> {
-
-        let value = concat_bytes!(
-            b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01",
-            b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02",
-            b"\x19\x8e\x93\x93\x92\x0d\x48\x3a\x72\x60\xbf\xb7\x31\xfb\x5d\x25\xf1\xaa\x49\x33\x35\xa9\xe7\x12\x97\xe4\x85\xb7\xae\xf3\x12\xc2",
-            b"\x18\x00\xde\xef\x12\x1f\x1e\x76\x42\x6a\x00\x66\x5e\x5c\x44\x79\x67\x43\x22\xd4\xf7\x5e\xda\xdd\x46\xde\xbd\x5c\xd9\x92\xf6\xed",
-            b"\x09\x06\x89\xd0\x58\x5f\xf0\x75\xec\x9e\x99\xad\x69\x0c\x33\x95\xbc\x4b\x31\x33\x70\xb3\x8e\xf3\x55\xac\xda\xdc\xd1\x22\x97\x5b",
-            b"\x12\xc8\x5e\xa5\xdb\x8c\x6d\xeb\x4a\xab\x71\x80\x8d\xcb\x40\x8f\xe3\xd1\xe7\x69\x0c\x43\xd3\x7b\x4c\xe6\xcc\x01\x66\xfa\x7d\xaa",
-            b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01",
-            b"\x30\x64\x4e\x72\xe1\x31\xa0\x29\xb8\x50\x45\xb6\x81\x81\x58\x5d\x97\x81\x6a\x91\x68\x71\xca\x8d\x3c\x20\x8c\x16\xd8\x7c\xfd\x45",
-            b"\x19\x8e\x93\x93\x92\x0d\x48\x3a\x72\x60\xbf\xb7\x31\xfb\x5d\x25\xf1\xaa\x49\x33\x35\xa9\xe7\x12\x97\xe4\x85\xb7\xae\xf3\x12\xc2",
-            b"\x18\x00\xde\xef\x12\x1f\x1e\x76\x42\x6a\x00\x66\x5e\x5c\x44\x79\x67\x43\x22\xd4\xf7\x5e\xda\xdd\x46\xde\xbd\x5c\xd9\x92\xf6\xed",
-            b"\x09\x06\x89\xd0\x58\x5f\xf0\x75\xec\x9e\x99\xad\x69\x0c\x33\x95\xbc\x4b\x31\x33\x70\xb3\x8e\xf3\x55\xac\xda\xdc\xd1\x22\x97\x5b",
-            b"\x12\xc8\x5e\xa5\xdb\x8c\x6d\xeb\x4a\xab\x71\x80\x8d\xcb\x40\x8f\xe3\xd1\xe7\x69\x0c\x43\xd3\x7b\x4c\xe6\xcc\x01\x66\xfa\x7d\xaa"
-        );
-
-        Some(env::alt_bn128_pairing_check(value))
+    pub fn get_call(&self, n:u64) -> Option<bool> {
+        self.res_calls.get(&n)
     }
 
+    pub fn groth16verify(&self, vk: VKData, proof:ProofData, input:InputData) -> Option<bool> {
+        let vk = Into::<Option<VK>>::into(vk)?;
+        let proof = Into::<Option<Proof>>::into(proof)?;
+        let input = Into::<Option<Input>>::into(input)?;
+        let data = groth16_verifier_prepare_pairing(&vk, &proof, &input)?;
+        Some(env::alt_bn128_pairing_check(&data))
+    }
+
+    pub fn groth16verify_log(&mut self, vk: VKData, proof:ProofData, input:InputData) -> Option<()> {
+        let vk = Into::<Option<VK>>::into(vk)?;
+        let proof = Into::<Option<Proof>>::into(proof)?;
+        let input = Into::<Option<Input>>::into(input)?;
+        let data = groth16_verifier_prepare_pairing(&vk, &proof, &input)?;
+
+        self.res_calls.insert(&self.n_calls, &env::alt_bn128_pairing_check(&data));
+        self.n_calls+=1;
+        Some(())
+    }
+
+    pub fn hello_num(&self, n: U256) -> Option<U256> {
+        let (c, _) = n.overflowing_mul(n);
+        Some(c)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -71,12 +86,4 @@ mod tests {
         }
     }
 
-
-    #[test]
-    fn test_pairing_check() {
-        let context = get_context(vec![], true);
-        testing_env!(context);
-        let contract = Groth16Verifier::default();
-        assert_eq!(Some(true), contract.pairing_check());
-    }
 }
