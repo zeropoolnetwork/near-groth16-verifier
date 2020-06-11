@@ -1,217 +1,135 @@
-use bn::{AffineG1, AffineG2, Fq, Fq2, Fr, G1};
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, ser::{Serializer}, Deserialize, de::{Deserializer, self}};
+use num::BigUint;
+use core::str::FromStr;
+use near_sdk::env;
 
-construct_uint! {
-    /// 256-bit unsigned integer.
-    #[derive(BorshSerialize,BorshDeserialize)]
-    pub struct U256(4);
-}
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
+pub struct Fr(pub [u8;32]);
 
-impl_uint_serde!(U256, 4);
+pub const FR_ONE: Fr = Fr([1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);
 
-pub trait Vectorize {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()>;
-}
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
+pub struct Fq(pub [u8;32]);
 
-impl Vectorize for Fq {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()> {
-        self.to_big_endian(data).ok()
+
+
+impl Serialize for Fr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        let num = BigUint::from_bytes_le(&self.0[..]);
+        serializer.serialize_str(&num.to_string())
     }
 }
 
-impl Vectorize for Fq2 {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()> {
-        if data.len() != 64 {
-            None
+impl<'de> Deserialize<'de> for Fr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = serde::Deserialize::deserialize(deserializer)?;
+        let num = BigUint::from_str(&s).map_err(|_| de::Error::custom("Wrong number format"))?;
+        let data = num.to_bytes_le();
+        if data.len() > 32 {
+            Err(de::Error::custom("Too long number"))
         } else {
-            self.imaginary().vectorize(&mut data[0..32])?;
-            self.real().vectorize(&mut data[32..64])
+            let mut res = Self([0;32]);
+            &mut res.0[..data.len()].clone_from_slice(&data);
+            Ok(res)
         }
     }
 }
 
-impl Vectorize for AffineG1 {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()> {
-        if data.len() != 64 {
-            None
+
+impl Serialize for Fq {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        let num = BigUint::from_bytes_le(&self.0[..]);
+        serializer.serialize_str(&num.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Fq {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = serde::Deserialize::deserialize(deserializer)?;
+        let num = BigUint::from_str(&s).map_err(|_| de::Error::custom("Wrong number format"))?;
+        let data = num.to_bytes_le();
+        if data.len() > 32 {
+            Err(de::Error::custom("Too long number"))
         } else {
-            self.x().vectorize(&mut data[0..32])?;
-            self.y().vectorize(&mut data[32..64])
+            let mut res = Self([0;32]);
+            &mut res.0[..data.len()].clone_from_slice(&data);
+            Ok(res)
         }
     }
 }
 
-impl Vectorize for AffineG2 {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()> {
-        if data.len() != 128 {
-            None
-        } else {
-            self.x().vectorize(&mut data[0..64])?;
-            self.y().vectorize(&mut data[64..128])
-        }
-    }
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy, Serialize, Deserialize)]
+pub struct Fq2(pub Fq, pub Fq);
+
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy, Serialize, Deserialize)]
+pub struct G1(pub Fq, pub Fq);
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy, Serialize, Deserialize)]
+pub struct G2(pub Fq2, pub Fq2);
+
+
+#[inline]
+pub fn alt_bn128_g1_multiexp(v:Vec<(bool, Fr, G1)>) -> G1{
+    let data = v.try_to_vec().unwrap_or_else(|_| env::panic(b"Cannot serialize data."));
+    let res = env::alt_bn128_g1_multiexp(&data);
+    let mut res_ptr = &res[..];
+    <G1 as BorshDeserialize>::deserialize(&mut res_ptr).unwrap_or_else(|_| env::panic(b"Cannot deserialize data."))
 }
 
-impl Vectorize for (AffineG1, AffineG2) {
-    fn vectorize(&self, data: &mut [u8]) -> Option<()> {
-        if data.len() != 192 {
-            None
-        } else {
-            self.0.vectorize(&mut data[0..64])?;
-            self.1.vectorize(&mut data[64..192])
-        }
-    }
+#[inline]
+pub fn alt_bn128_g1_neg(p:G1) -> G1 {
+    alt_bn128_g1_multiexp(vec![(true, FR_ONE, p)])
 }
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
-)]
-pub struct G1PointData(pub U256, pub U256);
-
-#[derive(
-    Clone, Copy, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
-)]
-pub struct G2PointData(pub (U256, U256), pub (U256, U256));
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
-pub struct VKData {
-    pub alpha_g1: G1PointData,
-    pub beta_g2: G2PointData,
-    pub gamma_g2: G2PointData,
-    pub delta_g2: G2PointData,
-    pub ic: Vec<G1PointData>,
+#[inline]
+pub fn alt_bn128_pairing_check(v:Vec<(G1,G2)>) -> bool {
+    let data = v.try_to_vec().unwrap_or_else(|_| env::panic(b"Cannot serialize data."));
+    env::alt_bn128_pairing_check(&data)
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
-pub struct ProofData {
-    pub a: G1PointData,
-    pub b: G2PointData,
-    pub c: G1PointData,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
-pub struct InputData(pub Vec<U256>);
-
-#[derive(Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize)]
 pub struct VK {
-    pub alpha_g1: AffineG1,
-    pub beta_g2: AffineG2,
-    pub gamma_g2: AffineG2,
-    pub delta_g2: AffineG2,
-    pub ic: Vec<AffineG1>,
+    pub alpha_g1: G1,
+    pub beta_g2: G2,
+    pub gamma_g2: G2,
+    pub delta_g2: G2,
+    pub ic: Vec<G1>,
 }
 
-#[derive(Clone)]
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize)]
 pub struct Proof {
-    pub a: AffineG1,
-    pub b: AffineG2,
-    pub c: AffineG1,
+    pub a: G1,
+    pub b: G2,
+    pub c: G1,
 }
 
-pub struct Input(pub Vec<Fr>);
 
-impl Into<Option<Fq>> for U256 {
-    fn into(self) -> Option<Fq> {
-        let mut buff = [0u8; 32];
-        self.to_big_endian(&mut buff[..]);
-        Fq::from_slice(&buff[..]).ok()
+pub fn alt_bn128_groth16verify(vk:VK, proof:Proof, input:Vec<Fr>) -> bool {
+    if vk.ic.len() != input.len() + 1 {
+        env::panic(b"Wrong input len.");
     }
-}
+    let neg_a = alt_bn128_g1_neg(proof.a);
+    let acc_expr = vk.ic.iter().zip([FR_ONE].iter().chain(input.iter())).map(|(&base, &exp)| (false, exp, base)).collect::<Vec<_>>();
+    let acc = alt_bn128_g1_multiexp(acc_expr);
 
-impl Into<Option<Fr>> for U256 {
-    fn into(self) -> Option<Fr> {
-        let mut buff = [0u8; 32];
-        self.to_big_endian(&mut buff[..]);
-        Fr::from_slice(&buff[..]).ok()
-    }
-}
+    let pairing_expr = vec![
+        (neg_a, proof.b),
+        (vk.alpha_g1, vk.beta_g2),
+        (acc, vk.gamma_g2),
+        (proof.c, vk.delta_g2),
+    ];
 
-impl Into<Option<AffineG1>> for G1PointData {
-    fn into(self) -> Option<AffineG1> {
-        let x = Into::<Option<Fq>>::into(self.0)?;
-        let y = Into::<Option<Fq>>::into(self.1)?;
-        AffineG1::new(x, y).ok()
-    }
-}
-
-impl Into<Option<AffineG2>> for G2PointData {
-    fn into(self) -> Option<AffineG2> {
-        let x_i = Into::<Option<Fq>>::into(self.0 .0)?;
-        let x_r = Into::<Option<Fq>>::into(self.0 .1)?;
-        let y_i = Into::<Option<Fq>>::into(self.1 .0)?;
-        let y_r = Into::<Option<Fq>>::into(self.1 .1)?;
-
-        let x = Fq2::new(x_r, x_i);
-        let y = Fq2::new(y_r, y_i);
-
-        AffineG2::new(x, y).ok()
-    }
-}
-
-impl Into<Option<VK>> for VKData {
-    fn into(self) -> Option<VK> {
-        Some(VK {
-            alpha_g1: Into::<Option<AffineG1>>::into(self.alpha_g1)?,
-            beta_g2: Into::<Option<AffineG2>>::into(self.beta_g2)?,
-            gamma_g2: Into::<Option<AffineG2>>::into(self.gamma_g2)?,
-            delta_g2: Into::<Option<AffineG2>>::into(self.delta_g2)?,
-            ic: self
-                .ic
-                .iter()
-                .map(|&c| Into::<Option<AffineG1>>::into(c))
-                .collect::<Option<Vec<_>>>()?,
-        })
-    }
-}
-
-impl Into<Option<Proof>> for ProofData {
-    fn into(self) -> Option<Proof> {
-        Some(Proof {
-            a: Into::<Option<AffineG1>>::into(self.a)?,
-            b: Into::<Option<AffineG2>>::into(self.b)?,
-            c: Into::<Option<AffineG1>>::into(self.c)?,
-        })
-    }
-}
-
-impl Into<Option<Input>> for InputData {
-    fn into(self) -> Option<Input> {
-        Some(Input(
-            self.0
-                .iter()
-                .map(|&c| Into::<Option<Fr>>::into(c))
-                .collect::<Option<Vec<_>>>()?,
-        ))
-    }
-}
-
-pub fn groth16_verifier_prepare_pairing(vk: &VK, proof: &Proof, input: &Input) -> Option<Vec<u8>> {
-    let len = input.0.len();
-    if vk.ic.len() != len + 1 {
-        None
-    } else {
-        let mut res = vec![0u8; 192*4];
-        let mut acc = G1::from(vk.ic[0]);
-
-        for i in 0..len {
-            acc = acc + G1::from(vk.ic[i + 1]) * input.0[i];
-        }
-        let acc = AffineG1::from_jacobian(acc)?;
-
-        let mut neg_a = proof.a.clone();
-        neg_a.set_y(-neg_a.y());
-
-        let pairs = [
-            (neg_a, proof.b),
-            (vk.alpha_g1, vk.beta_g2),
-            (acc, vk.gamma_g2),
-            (proof.c, vk.delta_g2),
-        ];
-        for i in 0..4 {
-            pairs[i].vectorize(&mut res[192 * i..192 * (i + 1)])?;
-        }
-
-        Some(res)
-    }
+    alt_bn128_pairing_check(pairing_expr)
+    
 }

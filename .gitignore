@@ -12,3 +12,4 @@ neardev
 
 # Dependencies
 node_modules
+.env
