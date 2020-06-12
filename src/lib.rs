@@ -1,7 +1,7 @@
 pub mod verifier;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::collections::Map;
+use near_sdk::collections::TreeMap;
 use near_sdk::{env, near_bindgen, json_types::Base64VecU8};
 use verifier::{alt_bn128_g1_multiexp, alt_bn128_g1_neg, alt_bn128_groth16verify, alt_bn128_pairing_check, Fq, Fr, Fq2, G1, G2, VK, Proof};
 
@@ -13,7 +13,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Groth16Verifier {
     pub n_calls:u64,
-    pub res_calls: Map<u64,bool>
+    pub res_calls: TreeMap<u64,bool>
 }
 
 
