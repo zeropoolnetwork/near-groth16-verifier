@@ -79,7 +79,7 @@ pub struct G2(pub Fq2, pub Fq2);
 
 
 #[inline]
-pub fn alt_bn128_g1_multiexp(v:Vec<(bool, Fr, G1)>) -> G1{
+pub fn alt_bn128_g1_multiexp(v:Vec<(bool, G1, Fr)>) -> G1{
     let data = v.try_to_vec().unwrap_or_else(|_| env::panic(b"Cannot serialize data."));
     let res = env::alt_bn128_g1_multiexp(&data);
     let mut res_ptr = &res[..];
@@ -88,7 +88,7 @@ pub fn alt_bn128_g1_multiexp(v:Vec<(bool, Fr, G1)>) -> G1{
 
 #[inline]
 pub fn alt_bn128_g1_neg(p:G1) -> G1 {
-    alt_bn128_g1_multiexp(vec![(true, FR_ONE, p)])
+    alt_bn128_g1_multiexp(vec![(true, p, FR_ONE)])
 }
 
 #[inline]
@@ -120,7 +120,7 @@ pub fn alt_bn128_groth16verify(vk:VK, proof:Proof, input:Vec<Fr>) -> bool {
         env::panic(b"Wrong input len.");
     }
     let neg_a = alt_bn128_g1_neg(proof.a);
-    let acc_expr = vk.ic.iter().zip([FR_ONE].iter().chain(input.iter())).map(|(&base, &exp)| (false, exp, base)).collect::<Vec<_>>();
+    let acc_expr = vk.ic.iter().zip([FR_ONE].iter().chain(input.iter())).map(|(&base, &exp)| (false, base, exp)).collect::<Vec<_>>();
     let acc = alt_bn128_g1_multiexp(acc_expr);
 
     let pairing_expr = vec![

@@ -40,18 +40,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bn"
-version = "0.4.4"
-source = "git+https://github.com/paritytech/bn#635c4cdd560bc0c8b262e6bf809dc709da8bcd7e"
-dependencies = [
- "byteorder",
- "crunchy",
- "lazy_static",
- "rand",
- "rustc-hex",
-]
-
-[[package]]
 name = "borsh"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,7 +266,7 @@ name = "near-vm-logic"
 version = "0.9.1"
 dependencies = [
  "base64",
- "bn",
+ "borsh",
  "bs58",
  "byteorder",
  "near-runtime-fees",
@@ -286,6 +274,7 @@ dependencies = [
  "serde",
  "sha2",
  "sha3",
+ "zeropool-bn",
 ]
 
 [[package]]
@@ -545,3 +534,17 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "zeropool-bn"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49d60456ebe73293e70350c67c2e7700522237625a58e552c3a0629c879c71d2"
+dependencies = [
+ "borsh",
+ "byteorder",
+ "crunchy",
+ "lazy_static",
+ "rand",
+ "rustc-hex",
+]
